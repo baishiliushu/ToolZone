@@ -36,8 +36,8 @@ def run_inference_nhwc(onnx_session, input_size, image):
     image_width, image_height = image.shape[1], image.shape[0]
     print(f"{image_width}, {image_height}")
     # Pre process:Resize, BGR->RGB, Reshape, float32 cast
-    input_image,_,_,_ = my_letter_box(image, input_size)#cv.resize(image, dsize=(input_size, input_size))
-    input_image = cv.cvtColor(input_image, cv.COLOR_BGR2RGB)
+    #input_image,_,_,_ = my_letter_box(image, input_size) #cv.resize(image, dsize=(input_size, input_size))
+    input_image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     print(f"cv shape:{input_image.shape}")
     #input_image_t = input_image.reshape(-1, input_size, input_size, 3)
     #print(f"1*192*192*3 shape:{input_image_t.shape}")
@@ -73,8 +73,8 @@ def run_inference(onnx_session, input_size, image):
     image_width, image_height = image.shape[1], image.shape[0]
     print(f"{image_width}, {image_height}")
     # Pre process:Resize, BGR->RGB, Reshape, float32 cast
-    input_image, _, _, _ = my_letter_box(image, input_size) #cv.resize(image, dsize=(input_size, input_size))
-    input_image = cv.cvtColor(input_image, cv.COLOR_BGR2RGB)
+    #input_image, _, _, _ = my_letter_box(image, input_size)# cv.resize(image, dsize=(input_size, input_size))
+    input_image = cv.cvtColor(image, cv.COLOR_BGR2RGB)
     print(f"cv shape:{input_image.shape}")
     #img = (img_rsz - img_mean) * img_scale
     #img = np.asarray(img, dtype=np.float32)
@@ -113,8 +113,9 @@ def run_inference(onnx_session, input_size, image):
 
 
 def main():
-    input_path = "/home/leon/mount_point_c/githubs_new/movenet/movenet.pytorch/data/samples"
-    save_dir = "./rst-1"
+    base_input = "/home/leon/mount_point_two/rubby-data-track/nfs_label_work/0428-cped/shining/d0416n3=sofa_sidetab_1_TSwhole"
+    input_path = os.path.join(base_input, "cropped_imgs")#"/home/leon/mount_point_c/githubs_new/movenet/movenet.pytorch/data/samples"
+    save_dir = os.path.join(base_input, "rst-movenet-onnx")  #/home/leon/mount_point_c/githubs_new/movenet/PINTO/
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     parser = argparse.ArgumentParser()
@@ -124,6 +125,7 @@ def main():
         type=str,
         default='/home/leon/mount_point_c/acuity-toolkit-binary-6.24.7/movenet-only-onnx/3-int16-nhwc/model_float32.onnx',
     ) 
+    #'/home/leon/mount_point_c/acuity-toolkit-binary-6.24.7/movenet-only-onnx/3-int16-nhwc/model_float32.onnx'
     #/home/leon/mount_point_c/acuity-toolkit-binary-6.24.7/movenet-only-onnx/int16-err-include-vknn-preprocess/view_modified.onnx
     # modified_modified_modified model_float32
     # /home/leon/mount_point_c/acuity-toolkit-binary-6.24.7/movenet-only-onnx/3-int16-nhwc
@@ -146,12 +148,15 @@ def main():
 
     # Load model
     onnx_session = onnxruntime.InferenceSession(model_path)
+    device_run = onnxruntime.get_device()
+    print(f"device: {device_run}")
+    onnx_session.set_providers(['CUDAExecutionProvider'], [ {'device_id': 0}])
     a = 0
     
     input_paths = getFileNames(input_path)
     for p in input_paths:
         
-        start_time = time.time()
+        
         
         frame = cv.imread(p)
         ret = True
@@ -162,6 +167,8 @@ def main():
         #debug_image = copy.deepcopy(frame)
 
         # Inference execution
+        frame,_,_,_ = my_letter_box(frame, input_size)
+        start_time = time.time()
         ##keypoints, scores = run_inference(onnx_session,input_size,frame,)
         keypoints, scores = run_inference_nhwc(onnx_session,input_size,frame,)
         elapsed_time = time.time() - start_time
@@ -231,8 +238,8 @@ def draw_debug(
     # Inference elapsed time 
     
     cv.putText(debug_image,
-               "Elapsed Time : " + '{:.1f}'.format(elapsed_time * 1000) + "ms",
-               (10, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2,
+               "Elapsed Time : " + '{:.1f}'.format(elapsed_time * 1000) + "ms AT {}".format(onnxruntime.get_device()),
+               (3, 10), cv.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1,
                cv.LINE_AA)
 
     return debug_image
